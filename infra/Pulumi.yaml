@@ -4,4 +4,4 @@ runtime:
 description: Deploy a Rust HTTP server to AWS Lightsail
 config:
   aws:region:
-    default: us-east-1
+    default: us-west-2

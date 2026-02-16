@@ -1,9 +1,8 @@
 /target
+node_modules/
 
 # Pulumi
-infra/node_modules/
 infra/bin/
-infra/package-lock.json
 
 # SSH keys saved from Pulumi outputs
 infra/id_lightsail
@@ -11,3 +10,7 @@ infra/id_lightsail.pub
 
 # Pulumi local state (if login --local is used)
 infra/.pulumi/
+
+# Lock files
+package-lock.json
+infra/package-lock.json
