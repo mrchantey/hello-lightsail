@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 import { execSync } from "child_process";
-import { existsSync, unlinkSync, writeFileSync } from "fs";
+import { copyFileSync, existsSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import {
 	CreateBucketCommand,
@@ -15,6 +15,16 @@ import * as readline from "readline";
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
+
+// S3 backend requires a passphrase for encrypting secrets in state.
+// Set via env var so Pulumi doesn't prompt interactively.
+// Override with PULUMI_CONFIG_PASSPHRASE env var for production use.
+if (
+	!process.env.PULUMI_CONFIG_PASSPHRASE &&
+	!process.env.PULUMI_CONFIG_PASSPHRASE_FILE
+) {
+	process.env.PULUMI_CONFIG_PASSPHRASE = "";
+}
 const APP = "hello-lightsail";
 const STAGE = "prod";
 const PREFIX = `${APP}--${STAGE}`;
@@ -325,6 +335,13 @@ async function cmdDeploy(): Promise<void> {
 
 /** Tear down all infrastructure and remove state. */
 async function cmdDown(): Promise<void> {
+	// pulumi stack rm deletes Pulumi.<stack>.yaml — back it up
+	const stackConfig = join(INFRA_DIR, `Pulumi.${STAGE}.yaml`);
+	const stackConfigBackup = `${stackConfig}.bak`;
+	if (existsSync(stackConfig)) {
+		copyFileSync(stackConfig, stackConfigBackup);
+	}
+
 	try {
 		pulumiLogin();
 		pulumiDestroy();
@@ -336,6 +353,12 @@ async function cmdDown(): Promise<void> {
 	try {
 		run("pulumi logout", { cwd: INFRA_DIR, silent: true });
 	} catch {}
+
+	// restore stack config so `just up` works again from clean state
+	if (existsSync(stackConfigBackup)) {
+		copyFileSync(stackConfigBackup, stackConfig);
+		unlinkSync(stackConfigBackup);
+	}
 	await removeBucket();
 	cleanKey();
 	console.log("\n✅ Everything torn down.");
