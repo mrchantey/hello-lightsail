@@ -1,0 +1,16 @@
+{
+	"name": "hello-lightsail-infra",
+	"version": "0.1.0",
+	"description": "Pulumi infrastructure for deploying a Rust HTTP server to AWS Lightsail",
+	"main": "index.ts",
+	"scripts": {
+		"build": "tsc"
+	},
+	"dependencies": {
+		"@pulumi/pulumi": "^3",
+		"@pulumi/aws": "^6"
+	},
+	"devDependencies": {
+		"typescript": "^5"
+	}
+}

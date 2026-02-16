@@ -1,0 +1,6 @@
+config:
+  aws:region: us-east-1
+  hello-lightsail:availabilityZone: us-east-1a
+  hello-lightsail:blueprintId: ubuntu_22_04
+  hello-lightsail:bundleId: nano_3_0
+  hello-lightsail:serverPort: "8337"

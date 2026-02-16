@@ -1,0 +1,7 @@
+name: hello-lightsail
+runtime:
+  name: nodejs
+description: Deploy a Rust HTTP server to AWS Lightsail
+config:
+  aws:region:
+    default: us-east-1
