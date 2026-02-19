@@ -17,6 +17,7 @@ curl http://<ip>:8337?name=pete
 just up      # Build binary, provision infra (S3 state bucket + Lightsail), deploy
 just deploy  # Rebuild and redeploy binary (infra must already exist)
 just down    # Destroy all AWS resources including state bucket
+just watch   # Stream logs from the running service (Ctrl+C to stop)
 ```
 
 ## Prerequisites
@@ -39,6 +40,10 @@ just down    # Destroy all AWS resources including state bucket
 
 The musl static build avoids glibc version mismatches between local machine and the Ubuntu 22.04 instance.
 
+## Binary naming
+
+Regardless of which example you build (`server` or `discord`), the deployed binary is always named `app` on the server and runs as the `hello-lightsail-app` systemd service. This ensures consistent deployment and log streaming regardless of the source example.
+
 ## Resources created
 
 | Resource | Name |
@@ -58,6 +63,6 @@ Instance: Ubuntu 22.04, `nano_3_0` (~$3.50/mo), us-west-2.
 ssh -i infra/id_lightsail ubuntu@<ip>
 
 # Check service
-sudo systemctl status hello-lightsail.service
-sudo journalctl -u hello-lightsail.service --no-pager -n 50
+sudo systemctl status hello-lightsail-app.service
+sudo journalctl -u hello-lightsail-app.service --no-pager -n 50
 ```

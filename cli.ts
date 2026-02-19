@@ -35,6 +35,8 @@ const KEY_FILE = join(INFRA_DIR, "id_lightsail");
 // Binary name will be determined from command line arguments, defaults to "server"
 let BINARY_NAME = "server";
 const REMOTE_DIR = `/opt/${APP}`;
+const REMOTE_BINARY_NAME = "app";
+const SERVICE_NAME = `${APP}-${REMOTE_BINARY_NAME}`;
 const SSH_USER = "ubuntu";
 const MUSL_TARGET = "x86_64-unknown-linux-musl";
 const SSH_OPTS =
@@ -283,9 +285,8 @@ async function waitForSSH(ip: string): Promise<void> {
 }
 
 function deployBinary(ip: string, port: string): void {
-	const binary =
+	const localBinary =
 		`$CARGO_TARGET_DIR/${MUSL_TARGET}/release/examples/${BINARY_NAME}`;
-	const serviceName = `${APP}-${BINARY_NAME}`;
 
 	// Write systemd unit file locally, then SCP it over
 	const serviceUnit = `[Unit]
@@ -294,7 +295,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${REMOTE_DIR}/${BINARY_NAME}
+ExecStart=${REMOTE_DIR}/${REMOTE_BINARY_NAME}
 WorkingDirectory=${REMOTE_DIR}
 Restart=always
 RestartSec=3
@@ -303,13 +304,13 @@ Environment=RUST_LOG=info
 [Install]
 WantedBy=multi-user.target
 `;
-	const localServiceFile = join(INFRA_DIR, `${serviceName}.service`);
+	const localServiceFile = join(INFRA_DIR, `${SERVICE_NAME}.service`);
 	writeFileSync(localServiceFile, serviceUnit);
 
 	console.log(`📤 Uploading binary and service file to ${ip}...`);
-	run(`scp ${SSH_OPTS} ${binary} ${SSH_USER}@${ip}:/tmp/${BINARY_NAME}`);
+	run(`scp ${SSH_OPTS} ${localBinary} ${SSH_USER}@${ip}:/tmp/${REMOTE_BINARY_NAME}`);
 	run(
-		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${serviceName}.service`,
+		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${SERVICE_NAME}.service`,
 	);
 
 	// Clean up local temp file
@@ -320,19 +321,19 @@ WantedBy=multi-user.target
 	console.log("🔄 Installing and restarting service...");
 	const remoteCmd = [
 		`sudo mkdir -p ${REMOTE_DIR}`,
-		`sudo mv /tmp/${BINARY_NAME} ${REMOTE_DIR}/${BINARY_NAME}`,
-		`sudo chmod +x ${REMOTE_DIR}/${BINARY_NAME}`,
-		`sudo mv /tmp/${serviceName}.service /etc/systemd/system/${serviceName}.service`,
+		`sudo mv /tmp/${REMOTE_BINARY_NAME} ${REMOTE_DIR}/${REMOTE_BINARY_NAME}`,
+		`sudo chmod +x ${REMOTE_DIR}/${REMOTE_BINARY_NAME}`,
+		`sudo mv /tmp/${SERVICE_NAME}.service /etc/systemd/system/${SERVICE_NAME}.service`,
 		`sudo systemctl daemon-reload`,
-		`sudo systemctl enable ${serviceName}.service`,
-		`sudo systemctl restart ${serviceName}.service`,
+		`sudo systemctl enable ${SERVICE_NAME}.service`,
+		`sudo systemctl restart ${SERVICE_NAME}.service`,
 		`sleep 2`,
-		`sudo systemctl is-active ${serviceName}.service`,
+		`sudo systemctl is-active ${SERVICE_NAME}.service`,
 	].join(" && ");
 	run(`ssh ${SSH_OPTS} ${SSH_USER}@${ip} '${remoteCmd}'`);
 
 	console.log(`\n✅ Binary deployed and service running!`);
-	console.log(`📦 Service: ${serviceName}`);
+	console.log(`📦 Service: ${SERVICE_NAME}`);
 	if (BINARY_NAME === "server") {
 		console.log(`🌐 http://${ip}:${port}`);
 	}
@@ -404,6 +405,35 @@ async function cmdDown(): Promise<void> {
 	console.log("\n✅ Everything torn down.");
 }
 
+/** Stream logs from the running service. */
+async function cmdWatch(): Promise<void> {
+	requireKey();
+	pulumiLogin();
+
+	const ip = pulumiOutput("staticIpAddress");
+	const lines = process.argv[3] || "50";
+
+	console.log(`📜 Streaming logs from ${SERVICE_NAME}...`);
+	console.log(`   (Press Ctrl+C to stop watching - service will keep running)\n`);
+
+	// Stream logs via journalctl -f follows in real-time
+	const remoteCmd = `sudo journalctl -f -u ${SERVICE_NAME}.service -n ${lines}`;
+	try {
+		run(`ssh ${SSH_OPTS} -t ${SSH_USER}@${ip} '${remoteCmd}'`);
+	} catch {
+		// SSH exits with non-zero when user hits Ctrl+C, which is expected
+		console.log("\n✅ Stopped watching logs. Service is still running.");
+	}
+}
+
+/** Log the IP address of the running instance. */
+async function cmdIp(): Promise<void> {
+	pulumiLogin();
+
+	const ip = pulumiOutput("staticIpAddress");
+	console.log(ip);
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -423,8 +453,12 @@ async function main(): Promise<void> {
 			return cmdDeploy();
 		case "down":
 			return cmdDown();
+		case "watch":
+			return cmdWatch();
+		case "ip":
+			return cmdIp();
 		default:
-			console.error("Usage: cli.ts <up|deploy|down> [binary]");
+			console.error("Usage: cli.ts <up|deploy|down|watch|ip> [binary|lines]");
 			console.error("");
 			console.error("Commands:");
 			console.error("  up      Synchronize infra, then build & deploy");
@@ -432,10 +466,15 @@ async function main(): Promise<void> {
 			console.error(
 				"  down    Remove all infra, including state bucket",
 			);
+			console.error("  watch   Stream logs from the running service");
+			console.error("  ip      Log the IP address of the running instance");
 			console.error("");
-			console.error("Binary options:");
+			console.error("Binary options (for up/deploy):");
 			console.error("  server  (default) - HTTP server example");
 			console.error("  discord           - Discord bot example");
+			console.error("");
+			console.error("Watch options:");
+			console.error("  cli.ts watch [lines]  - Number of lines to show (default: 50)");
 			process.exit(1);
 	}
 }
