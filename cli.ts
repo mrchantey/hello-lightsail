@@ -254,7 +254,7 @@ function requireKey(): void {
 function build(): void {
 	console.log("🔨 Building server binary...");
 	run(`cargo build --example ${BINARY_NAME} --release`);
-	console.log(`   ✅ Binary built: target/release/examples/${BINARY_NAME}`);
+	console.log(`   ✅ Binary built: $CARGO_TARGET_DIR/release/examples/${BINARY_NAME}`);
 }
 
 async function waitForSSH(ip: string): Promise<void> {
@@ -279,7 +279,7 @@ async function waitForSSH(ip: string): Promise<void> {
 }
 
 function deployBinary(ip: string, port: string): void {
-	const binary = `target/release/examples/${BINARY_NAME}`;
+	const binary = `$CARGO_TARGET_DIR/release/examples/${BINARY_NAME}`;
 
 	console.log(`📤 Uploading binary to ${ip}...`);
 	run(`scp ${SSH_OPTS} ${binary} ${SSH_USER}@${ip}:/tmp/${BINARY_NAME}`);

@@ -4,3 +4,4 @@ config:
   hello-lightsail:blueprintId: ubuntu_22_04
   hello-lightsail:bundleId: nano_3_0
   hello-lightsail:serverPort: "8337"
+encryptionsalt: v1:IVVWSbdpInE=:v1:iu1fZ7SRilrE0VUE:XbCBKd45GTRjuSQn3MLMsEJ4EyDnnA==
