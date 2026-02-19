@@ -315,6 +315,14 @@ WantedBy=multi-user.target
 		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${SERVICE_NAME}.service`,
 	);
 
+	const hasEnv = existsSync(".env");
+	if (hasEnv) {
+		console.log(`📤 Uploading .env to ${ip}...`);
+		run(`scp ${SSH_OPTS} .env ${SSH_USER}@${ip}:/tmp/.env`);
+	} else {
+		console.log(`⚠️  No local .env file found — skipping upload.`);
+	}
+
 	// Clean up local temp file
 	try {
 		unlinkSync(localServiceFile);
@@ -325,6 +333,7 @@ WantedBy=multi-user.target
 		`sudo mkdir -p ${REMOTE_DIR}`,
 		`sudo mv /tmp/${REMOTE_BINARY_NAME} ${REMOTE_DIR}/${REMOTE_BINARY_NAME}`,
 		`sudo chmod +x ${REMOTE_DIR}/${REMOTE_BINARY_NAME}`,
+		hasEnv ? `sudo mv /tmp/.env ${REMOTE_DIR}/.env` : `true`,
 		`sudo mv /tmp/${SERVICE_NAME}.service /etc/systemd/system/${SERVICE_NAME}.service`,
 		`sudo systemctl daemon-reload`,
 		`sudo systemctl enable ${SERVICE_NAME}.service`,
