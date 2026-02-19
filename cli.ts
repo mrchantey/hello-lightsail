@@ -432,6 +432,30 @@ async function cmdIp(): Promise<void> {
 
 	const ip = pulumiOutput("staticIpAddress");
 	console.log(ip);
+	
+	// Save IP to .env file
+	const envContent = `IP=${ip}\n`;
+	writeFileSync(".env", envContent);
+	console.log(`   💾 IP saved to .env`);
+}
+
+/** Ping the live site. */
+async function cmdPing(): Promise<void> {
+	pulumiLogin();
+
+	const ip = pulumiOutput("staticIpAddress");
+	const port = pulumiOutput("port");
+	
+	console.log(`🌐 Pinging http://${ip}:${port}/...\n`);
+	try {
+		const response = await fetch(`http://${ip}:${port}/`);
+		const body = await response.text();
+		console.log(`Status: ${response.status} ${response.statusText}`);
+		console.log(`\nBody:\n${body}`);
+	} catch (err) {
+		console.error(`❌ Failed to ping: ${err}`);
+		process.exit(1);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -457,8 +481,10 @@ async function main(): Promise<void> {
 			return cmdWatch();
 		case "ip":
 			return cmdIp();
+		case "ping":
+			return cmdPing();
 		default:
-			console.error("Usage: cli.ts <up|deploy|down|watch|ip> [binary|lines]");
+			console.error("Usage: cli.ts <up|deploy|down|watch|ip|ping> [binary|lines]");
 			console.error("");
 			console.error("Commands:");
 			console.error("  up      Synchronize infra, then build & deploy");
@@ -468,6 +494,7 @@ async function main(): Promise<void> {
 			);
 			console.error("  watch   Stream logs from the running service");
 			console.error("  ip      Log the IP address of the running instance");
+			console.error("  ping    Ping the live site");
 			console.error("");
 			console.error("Binary options (for up/deploy):");
 			console.error("  server  (default) - HTTP server example");

@@ -1,16 +1,15 @@
+set dotenv-load
+
 # Hello Lightsail
 # All logic lives in cli.ts — these are the only commands you need.
 
-# Default binary to deploy (can be overridden)
-BINARY := "server"
-
 # Synchronize infra, then build & deploy
-up:
-	npx tsx cli.ts up {{BINARY}}
+up binary:
+	npx tsx cli.ts up {{binary}}
 
 # Assume infra is up, build & deploy
-deploy:
-	npx tsx cli.ts deploy {{BINARY}}
+deploy binary:
+	npx tsx cli.ts deploy {{binary}}
 
 # Remove all infra, including state bucket
 down:
@@ -23,3 +22,8 @@ watch LINES="50":
 # Log the IP address of the running instance
 ip:
 	npx tsx cli.ts ip
+
+# Ping the live site
+ping:
+	curl $IP:8337
+	# npx tsx cli.ts ping
