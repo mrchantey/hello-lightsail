@@ -35,6 +35,7 @@ const KEY_FILE = join(INFRA_DIR, "id_lightsail");
 const BINARY_NAME = "server";
 const REMOTE_DIR = `/opt/${APP}`;
 const SSH_USER = "ubuntu";
+const MUSL_TARGET = "x86_64-unknown-linux-musl";
 const SSH_OPTS =
 	`-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${KEY_FILE}`;
 
@@ -252,9 +253,11 @@ function requireKey(): void {
 // ---------------------------------------------------------------------------
 
 function build(): void {
-	console.log("🔨 Building server binary...");
-	run(`cargo build --example ${BINARY_NAME} --release`);
-	console.log(`   ✅ Binary built: $CARGO_TARGET_DIR/release/examples/${BINARY_NAME}`);
+	console.log("🔨 Building server binary (musl, static)...");
+	run(`cargo build --example ${BINARY_NAME} --release --target ${MUSL_TARGET}`);
+	console.log(
+		`   ✅ Binary built: $CARGO_TARGET_DIR/${MUSL_TARGET}/release/examples/${BINARY_NAME}`,
+	);
 }
 
 async function waitForSSH(ip: string): Promise<void> {
@@ -279,17 +282,49 @@ async function waitForSSH(ip: string): Promise<void> {
 }
 
 function deployBinary(ip: string, port: string): void {
-	const binary = `$CARGO_TARGET_DIR/release/examples/${BINARY_NAME}`;
+	const binary =
+		`$CARGO_TARGET_DIR/${MUSL_TARGET}/release/examples/${BINARY_NAME}`;
 
-	console.log(`📤 Uploading binary to ${ip}...`);
+	// Write systemd unit file locally, then SCP it over
+	const serviceUnit = `[Unit]
+Description=Hello Lightsail HTTP Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${REMOTE_DIR}/${BINARY_NAME}
+WorkingDirectory=${REMOTE_DIR}
+Restart=always
+RestartSec=3
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+`;
+	const localServiceFile = join(INFRA_DIR, `${APP}.service`);
+	writeFileSync(localServiceFile, serviceUnit);
+
+	console.log(`📤 Uploading binary and service file to ${ip}...`);
 	run(`scp ${SSH_OPTS} ${binary} ${SSH_USER}@${ip}:/tmp/${BINARY_NAME}`);
+	run(
+		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${APP}.service`,
+	);
+
+	// Clean up local temp file
+	try {
+		unlinkSync(localServiceFile);
+	} catch {}
 
 	console.log("🔄 Installing and restarting service...");
 	const remoteCmd = [
+		`sudo mkdir -p ${REMOTE_DIR}`,
 		`sudo mv /tmp/${BINARY_NAME} ${REMOTE_DIR}/${BINARY_NAME}`,
 		`sudo chmod +x ${REMOTE_DIR}/${BINARY_NAME}`,
+		`sudo mv /tmp/${APP}.service /etc/systemd/system/${APP}.service`,
+		`sudo systemctl daemon-reload`,
+		`sudo systemctl enable ${APP}.service`,
 		`sudo systemctl restart ${APP}.service`,
-		`sleep 1`,
+		`sleep 2`,
 		`sudo systemctl is-active ${APP}.service`,
 	].join(" && ");
 	run(`ssh ${SSH_OPTS} ${SSH_USER}@${ip} '${remoteCmd}'`);

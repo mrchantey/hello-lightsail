@@ -24,7 +24,7 @@
 //!
 use beet::prelude::*;
 
-fn main() {
+pub fn run() -> AppExit {
     App::new()
         .add_plugins((
             MinimalPlugins,
@@ -34,12 +34,12 @@ fn main() {
         .add_systems(Startup, |mut commands: Commands| {
             commands.spawn((
                 // CliServer::default(),
-                HttpServer::default(),
+                HttpServer::default().with_host([0, 0, 0, 0]),
                 Count::default(),
                 handler_exchange(handler),
             ));
         })
-        .run();
+        .run()
 }
 
 #[derive(Default, Component)]

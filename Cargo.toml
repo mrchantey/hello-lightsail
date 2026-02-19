@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-beet = {path = "./beet", features=["http_server"]}
+beet = {path = "../beet", features=["http_server"]}
