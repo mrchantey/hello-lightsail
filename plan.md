@@ -1,12 +1,8 @@
 
-Okey dokey artichokey, we've fixed the lightsail issue, i cant exactly remember what we're up to.
 
+Okey dokey lets add another example, discord.rs.
 
+Use `../hello-discord` as a dependency, edit hello-discord so its a library, and expose its main function as the run function.
 
-
-Add this to notes. If you get an error 
-```sh
-InvalidInputException: Sorry, you've reached your maximum limit of Lightsail Instances : 0. If you're new to Lightsail, please try again later. If the issue persists, please contact Customer Support.
-```
-You may need to request a quota increase:
-https://us-west-2.console.aws.amazon.com/servicequotas/home/services/lightsail/quotas/L-4259AF9B
+then make it run in the discord.rs example. 
+It means the justfile and cli must allow specifying the binary to upload.

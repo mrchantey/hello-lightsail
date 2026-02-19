@@ -32,7 +32,8 @@ const BUCKET = `${PREFIX}--state`;
 const REGION = "us-west-2";
 const INFRA_DIR = "infra";
 const KEY_FILE = join(INFRA_DIR, "id_lightsail");
-const BINARY_NAME = "server";
+// Binary name will be determined from command line arguments, defaults to "server"
+let BINARY_NAME = "server";
 const REMOTE_DIR = `/opt/${APP}`;
 const SSH_USER = "ubuntu";
 const MUSL_TARGET = "x86_64-unknown-linux-musl";
@@ -284,10 +285,11 @@ async function waitForSSH(ip: string): Promise<void> {
 function deployBinary(ip: string, port: string): void {
 	const binary =
 		`$CARGO_TARGET_DIR/${MUSL_TARGET}/release/examples/${BINARY_NAME}`;
+	const serviceName = `${APP}-${BINARY_NAME}`;
 
 	// Write systemd unit file locally, then SCP it over
 	const serviceUnit = `[Unit]
-Description=Hello Lightsail HTTP Server
+Description=${APP} ${BINARY_NAME}
 After=network.target
 
 [Service]
@@ -301,13 +303,13 @@ Environment=RUST_LOG=info
 [Install]
 WantedBy=multi-user.target
 `;
-	const localServiceFile = join(INFRA_DIR, `${APP}.service`);
+	const localServiceFile = join(INFRA_DIR, `${serviceName}.service`);
 	writeFileSync(localServiceFile, serviceUnit);
 
 	console.log(`📤 Uploading binary and service file to ${ip}...`);
 	run(`scp ${SSH_OPTS} ${binary} ${SSH_USER}@${ip}:/tmp/${BINARY_NAME}`);
 	run(
-		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${APP}.service`,
+		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${serviceName}.service`,
 	);
 
 	// Clean up local temp file
@@ -320,17 +322,20 @@ WantedBy=multi-user.target
 		`sudo mkdir -p ${REMOTE_DIR}`,
 		`sudo mv /tmp/${BINARY_NAME} ${REMOTE_DIR}/${BINARY_NAME}`,
 		`sudo chmod +x ${REMOTE_DIR}/${BINARY_NAME}`,
-		`sudo mv /tmp/${APP}.service /etc/systemd/system/${APP}.service`,
+		`sudo mv /tmp/${serviceName}.service /etc/systemd/system/${serviceName}.service`,
 		`sudo systemctl daemon-reload`,
-		`sudo systemctl enable ${APP}.service`,
-		`sudo systemctl restart ${APP}.service`,
+		`sudo systemctl enable ${serviceName}.service`,
+		`sudo systemctl restart ${serviceName}.service`,
 		`sleep 2`,
-		`sudo systemctl is-active ${APP}.service`,
+		`sudo systemctl is-active ${serviceName}.service`,
 	].join(" && ");
 	run(`ssh ${SSH_OPTS} ${SSH_USER}@${ip} '${remoteCmd}'`);
 
 	console.log(`\n✅ Binary deployed and service running!`);
-	console.log(`🌐 http://${ip}:${port}`);
+	console.log(`📦 Service: ${serviceName}`);
+	if (BINARY_NAME === "server") {
+		console.log(`🌐 http://${ip}:${port}`);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +410,11 @@ async function cmdDown(): Promise<void> {
 
 const command = process.argv[2];
 
+// Support passing binary name as third argument
+if (process.argv[3]) {
+	BINARY_NAME = process.argv[3];
+}
+
 async function main(): Promise<void> {
 	switch (command) {
 		case "up":
@@ -414,7 +424,7 @@ async function main(): Promise<void> {
 		case "down":
 			return cmdDown();
 		default:
-			console.error("Usage: cli.ts <up|deploy|down>");
+			console.error("Usage: cli.ts <up|deploy|down> [binary]");
 			console.error("");
 			console.error("Commands:");
 			console.error("  up      Synchronize infra, then build & deploy");
@@ -422,6 +432,10 @@ async function main(): Promise<void> {
 			console.error(
 				"  down    Remove all infra, including state bucket",
 			);
+			console.error("");
+			console.error("Binary options:");
+			console.error("  server  (default) - HTTP server example");
+			console.error("  discord           - Discord bot example");
 			process.exit(1);
 	}
 }
