@@ -36,7 +36,7 @@ const KEY_FILE = join(INFRA_DIR, "id_lightsail");
 let BINARY_NAME = "server";
 const REMOTE_DIR = `/opt/${APP}`;
 const REMOTE_BINARY_NAME = "app";
-const SERVICE_NAME = `${APP}-${REMOTE_BINARY_NAME}`;
+const SERVICE_NAME = APP;
 const SSH_USER = "ubuntu";
 const MUSL_TARGET = "x86_64-unknown-linux-musl";
 const SSH_OPTS =
@@ -308,7 +308,9 @@ WantedBy=multi-user.target
 	writeFileSync(localServiceFile, serviceUnit);
 
 	console.log(`📤 Uploading binary and service file to ${ip}...`);
-	run(`scp ${SSH_OPTS} ${localBinary} ${SSH_USER}@${ip}:/tmp/${REMOTE_BINARY_NAME}`);
+	run(
+		`scp ${SSH_OPTS} ${localBinary} ${SSH_USER}@${ip}:/tmp/${REMOTE_BINARY_NAME}`,
+	);
 	run(
 		`scp ${SSH_OPTS} ${localServiceFile} ${SSH_USER}@${ip}:/tmp/${SERVICE_NAME}.service`,
 	);
@@ -414,7 +416,9 @@ async function cmdWatch(): Promise<void> {
 	const lines = process.argv[3] || "50";
 
 	console.log(`📜 Streaming logs from ${SERVICE_NAME}...`);
-	console.log(`   (Press Ctrl+C to stop watching - service will keep running)\n`);
+	console.log(
+		`   (Press Ctrl+C to stop watching - service will keep running)\n`,
+	);
 
 	// Stream logs via journalctl -f follows in real-time
 	const remoteCmd = `sudo journalctl -f -u ${SERVICE_NAME}.service -n ${lines}`;
@@ -432,7 +436,7 @@ async function cmdIp(): Promise<void> {
 
 	const ip = pulumiOutput("staticIpAddress");
 	console.log(ip);
-	
+
 	// Save IP to .env file
 	const envContent = `IP=${ip}\n`;
 	writeFileSync(".env", envContent);
@@ -445,7 +449,7 @@ async function cmdPing(): Promise<void> {
 
 	const ip = pulumiOutput("staticIpAddress");
 	const port = pulumiOutput("port");
-	
+
 	console.log(`🌐 Pinging http://${ip}:${port}/...\n`);
 	try {
 		const response = await fetch(`http://${ip}:${port}/`);
@@ -484,7 +488,9 @@ async function main(): Promise<void> {
 		case "ping":
 			return cmdPing();
 		default:
-			console.error("Usage: cli.ts <up|deploy|down|watch|ip|ping> [binary|lines]");
+			console.error(
+				"Usage: cli.ts <up|deploy|down|watch|ip|ping> [binary|lines]",
+			);
 			console.error("");
 			console.error("Commands:");
 			console.error("  up      Synchronize infra, then build & deploy");
@@ -501,7 +507,9 @@ async function main(): Promise<void> {
 			console.error("  discord           - Discord bot example");
 			console.error("");
 			console.error("Watch options:");
-			console.error("  cli.ts watch [lines]  - Number of lines to show (default: 50)");
+			console.error(
+				"  cli.ts watch [lines]  - Number of lines to show (default: 50)",
+			);
 			process.exit(1);
 	}
 }

@@ -46,7 +46,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/${appName}/server
+ExecStart=/opt/${appName}/app
 WorkingDirectory=/opt/${appName}
 Restart=always
 RestartSec=3
