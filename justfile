@@ -6,10 +6,12 @@ set dotenv-load
 # Synchronize infra, then build & deploy
 up binary:
 	npx tsx cli.ts up {{binary}}
+	just watch
 
 # Assume infra is up, build & deploy
 deploy binary:
 	npx tsx cli.ts deploy {{binary}}
+	just watch
 
 # Remove all infra, including state bucket
 down:
